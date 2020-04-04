@@ -34,17 +34,32 @@ test('we are able to get custom token from CF', async () => {
   expect(result).toBeTruthy()
 })
 
-test.only('we are able to get and set data from CF', async () => {
-  const postId = '001'
-  await testDb.doc(`post/${postId}`).set({
-    name: 'post001'
+test('we are able to throw a HttpsError from CF', async () => {
+  expect(testFunctions.httpsCallable('testHttpsError')()).rejects.toThrow(
+    'we are testing HttpsError'
+  )
+})
+
+test('create a managed post', async () => {
+  const managerId = 'fooManager'
+  await testDb.doc(`managers/${managerId}`).set({ id: managerId })
+
+  const { data } = await testFunctions.httpsCallable('createPrivatePost')({
+    managerId
   })
 
-  const result = await testFunctions.httpsCallable('getPreDefinedData')({
-    postId
-  })
+  const { auther } = (await testDb.doc(`posts/${data}`).get()).data()
+  expect(auther).toBe(managerId)
+})
 
-  console.log(result)
+test('Can not create a managed post by non-manager user', async () => {
+  const managerId = 'fooManager2'
+  const wrongMangerId = 'barManager2'
+  await testDb.doc(`managers/${wrongMangerId}`).set({ id: wrongMangerId })
 
-  expect(result).toBeTruthy()
+  expect(
+    testFunctions.httpsCallable('createPrivatePost')({
+      managerId
+    })
+  ).rejects.toThrow('You are not a manager')
 })
